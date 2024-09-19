@@ -112,7 +112,7 @@ func main() {
 	}
 }
 
-func cowboyFight(cowboys *[]Cowboy, index int, stopChan chan bool, wg *sync.WaitGroup, logger *slog.Logger) {
+func cowboyFight(cowboys *[]Cowboy, attackerIndex int, stopChan chan bool, wg *sync.WaitGroup, logger *slog.Logger) {
 	defer wg.Done()
 	for {
 		select {
@@ -121,11 +121,11 @@ func cowboyFight(cowboys *[]Cowboy, index int, stopChan chan bool, wg *sync.Wait
 		default:
 			time.Sleep(1 * time.Second)
 			targetIndex := rng.Intn(len(*cowboys))
-			for targetIndex == index {
+			for targetIndex == attackerIndex {
 				targetIndex = rng.Intn(len(*cowboys))
 			}
 
-			attack(cowboys, index, targetIndex, logger)
+			attack(cowboys, attackerIndex, targetIndex, logger)
 		}
 	}
 }
@@ -144,7 +144,7 @@ func attack(cowboys *[]Cowboy, attackerIndex, targetIndex int, logger *slog.Logg
 		mutex.Lock()
 		aliveCowboysCount--
 		mutex.Unlock()
-		logger.Info("Cowboy", target.Name, "is dead")
+		logger.Info("Cowboy", target.Name, "is dead.", attacker.Name, "shot him")
 	}
 }
 
