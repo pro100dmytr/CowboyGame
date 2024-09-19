@@ -15,7 +15,7 @@ type Cowboy struct {
 	Damage int    `json:"damage"`
 }
 
-var cowboysJson = `
+var cowboysJson = ` 
 [
     {
       "name": "John",
@@ -46,6 +46,8 @@ var cowboysJson = `
 `
 
 var rng = rand.New(rand.NewSource(time.Now().UnixNano()))
+var mutex sync.Mutex
+var aliveCowboysCount int
 
 func main() {
 	logger := slog.New(slog.NewTextHandler(os.Stdout, nil))
@@ -69,6 +71,10 @@ func main() {
 		return
 	}
 
+	mutex.Lock()
+	aliveCowboysCount = len(cowboys)
+	mutex.Unlock()
+
 	stopChan := make(chan bool)
 	var wg sync.WaitGroup
 
@@ -80,19 +86,22 @@ func main() {
 
 	go func() {
 		for {
-			aliveCowboys := countAliveCowboys(cowboys)
-			if aliveCowboys <= 1 {
+			mutex.Lock()
+			if aliveCowboysCount <= 1 {
+				mutex.Unlock()
 				close(stopChan)
 				return
 			}
+			mutex.Unlock()
 			time.Sleep(1 * time.Second)
 		}
 	}()
 
 	wg.Wait()
 
-	aliveCowboys := countAliveCowboys(cowboys)
-	if aliveCowboys == 1 {
+	mutex.Lock()
+	defer mutex.Unlock()
+	if aliveCowboysCount == 1 {
 		for _, cowboy := range cowboys {
 			if cowboy.Health > 0 {
 				logger.Info("Cowboy", cowboy.Name, "is alive")
@@ -132,18 +141,11 @@ func attack(cowboys *[]Cowboy, attackerIndex, targetIndex int, logger *slog.Logg
 	target.Health -= attacker.Damage
 
 	if target.Health <= 0 {
+		mutex.Lock()
+		aliveCowboysCount--
+		mutex.Unlock()
 		logger.Info("Cowboy", target.Name, "is dead")
 	}
-}
-
-func countAliveCowboys(cowboys []Cowboy) int {
-	alive := 0
-	for _, cowboy := range cowboys {
-		if cowboy.Health > 0 {
-			alive++
-		}
-	}
-	return alive
 }
 
 func writeJsonToFile(filename, jsonStr string, logger *slog.Logger) error {
